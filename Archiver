@@ -1,0 +1,169 @@
+import java.io.*;
+import java.util.*;
+
+
+public class Archiver {
+    public static void main(String[] args) throws IOException
+    {
+        String text = "Villefort read the letter, then he covered his face with his\n" +
+                "hands. 'Oh!' the judge thought. 'Does he know what is in this\n" +
+                "letter? Does he know my real name? Does he know that\n" +
+                "Noirtier is my father? If he knows this, then I am in danger!' He\n" +
+                "looked closely at Dantes. Then he said, 'You cannot leave now.\n" +
+                "You must stay here for some time. I will try to make your stay as\n" +
+                "short as possible. The only thing against you is this letter.' He took\n" +
+                "the letter from the table, and went to the fire. 'Look, I am\n" +
+                "burning it.";
+
+        TreeMap<Character, Integer> frequencies = countFrequency(text);
+
+
+        ArrayList<CodeTreeNode> list = new ArrayList<>(); // список узлов для листьев дерева, к которым мы потом будем пременять алгоритм
+
+        for (Character q : frequencies.keySet()) {
+            list.add(new CodeTreeNode(q,frequencies.get(q)));
+        }
+
+
+        CodeTreeNode tree = huffman(list);
+
+
+        TreeMap<Character, String> codes = new TreeMap<>(); // хранение кодов для кодового дерева
+
+        for (Character c : frequencies.keySet()){
+
+            codes.put(c,tree.getCodeForChar(c,""));      //проход по дереву, вычесление 0 и 1 который будет кодом данного символа
+        }
+
+
+        StringBuilder encoded = new StringBuilder();
+
+        for (int i = 0; i < text.length(); i++) {
+            encoded.append(codes.get(text.charAt(i)));
+        }
+
+        System.out.println("Размер исходной строки: " + text.getBytes().length * 8 + " бит");
+        System.out.println("Размер сжатой строки: " + encoded.length() + " бит");
+       // System.out.println("Биты сжатой строки: " + encoded);
+
+
+        String decoded = huffmanDecode(encoded.toString(), tree);
+
+        System.out.println("Расшифрованно: " + decoded);
+
+
+
+
+    }
+
+    
+
+    private static TreeMap<Character, Integer>  countFrequency(String s) {  // сколько раз каждый символ встречается в строке
+
+        TreeMap<Character, Integer> map = new TreeMap<>();
+
+        for (int i = 0; i < s.length(); i++)
+        {
+            Character c = s.charAt(i);
+            Integer count = map.get(c);
+            map.put(c, count != null ? count + 1 : 1);
+        }
+
+        return map;
+    }
+
+
+
+    private static CodeTreeNode huffman(ArrayList<CodeTreeNode> list)
+    {
+        while (list.size() > 1) {
+
+            Collections.sort(list);
+
+            CodeTreeNode left = list.remove(list.size() - 1);
+            CodeTreeNode right = list.remove(list.size() - 1);
+
+            CodeTreeNode parent = new CodeTreeNode(null, right.weight+ left.weight,left,right); // создаем промежуточный узел
+
+            list.add(parent);
+        }
+
+        return list.get(0);
+    }
+
+
+    private static String huffmanDecode(String encoded, CodeTreeNode tree)
+    {
+        StringBuilder builder = new StringBuilder(); // сохраняем расшифрованные данные
+
+        CodeTreeNode node = tree; //хранение текущего узла когда мы будем спускаться по дереву
+
+        for (int i = 0; i < encoded.length(); i++) {
+            node = encoded.charAt(i) == '0' ? node.left : node.right; // если текущий бит 0, тогда идем на лево иначе идем на право
+
+            if(node.content != null){
+                builder.append(node.content); // добавили символ
+                node = tree; // возвращаем текущий узел сново на вершину дерева
+            }
+        }
+        return builder.toString();
+    }
+
+
+
+    private static class CodeTreeNode implements Comparable<CodeTreeNode> { //узел дерева
+
+
+        Character content;   // Символ листа
+        int weight;          // частота для листа или сумма частот для дочерних узлов
+        CodeTreeNode left;
+        CodeTreeNode right;
+
+        public CodeTreeNode(Character content, int weight) {
+            this.content = content;
+            this.weight = weight;
+        }
+
+        public CodeTreeNode(Character content, int weight, CodeTreeNode left, CodeTreeNode right) {
+            this.content = content;
+            this.weight = weight;
+            this.left = left;
+            this.right = right;
+        }
+
+        @Override
+        public int compareTo(CodeTreeNode o) {
+            return o.weight - weight;
+        }
+
+
+
+        public String getCodeForChar(Character ch, String parentPath) { // проход по дереву, где ch символ для которого мы ищем код, а String это путь в виде 0 и 1
+
+            if(content == ch) {  return parentPath; }
+
+            else {
+
+                if(left != null) { //если есть левый потомок, то рекурсивно добовляем в путь + 0
+                    String path = left.getCodeForChar(ch, parentPath + 0);
+
+                    if (path != null) { // если не ноль, значит нашелся путь, его мы и возвращаем
+                        return path;
+                    }
+                }
+
+                if(right != null) { //если есть правый потомок, то рекурсивно добовляем в путь + 1
+                    String path = right.getCodeForChar(ch,parentPath+1);
+
+                    if(path!= null) { return path; }
+                }
+
+            }
+
+            return null; // если не сработали предедущие return значит мы находимся в листе не того пути
+        }
+
+    }
+
+
+}
